@@ -10,8 +10,10 @@ class StreamConfigField(JSONField):
 
     def db_value(self, value):
         if isinstance(value, StreamNotificationsConfig):
+            self.disco_model = value
             return super(StreamConfigField, self).db_value(value.to_dict())
         if isinstance(value, dict):
+            self.disco_model = StreamNotificationsConfig(value)
             return super(StreamConfigField, self).db_value(value)
         if self.disco_model:
             return super(StreamConfigField, self).db_value(self.disco_model.inplace_update(value))

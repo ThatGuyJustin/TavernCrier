@@ -436,7 +436,8 @@ class AnnouncementPlugin(Plugin):
                         created_msg = self.client.api.channels_messages_create(config['channel'],
                                                                                content=msg,
                                                                                embeds=[embed],
-                                                                               components=[component.to_dict() for component in components])
+                                                                               components=[component.to_dict() for component in components],
+                                                                               allowed_mentions={'parse': ["roles", "users", "everyone"]})
 
                         live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
 
@@ -922,8 +923,6 @@ class AnnouncementPlugin(Plugin):
                 (StreamConfigs.guild_id == event.guild.id)).limit(25))
         else:
             streamers = list(StreamConfigs.select(StreamConfigs).where((StreamConfigs.guild_id == event.guild.id) & (StreamConfigs.streamer_name.contains(current_filter.lower()))).limit(25))
-
-        self.log.info(streamers)
 
         if len(streamers):
             for option in streamers:
