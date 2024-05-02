@@ -516,7 +516,7 @@ class AnnouncementPlugin(Plugin):
                 main_ar = ActionRow()
                 preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
                 preview_btn.url = f"https://twitch.tv/{streamer['login']}"
-                if 'mature' in enabled_components:
+                if 'mature_badge' in enabled_components:
                     preview_btn.label += "🔞"
                 main_ar.add_component(preview_btn)
                 msg_components.append(main_ar.to_dict())
