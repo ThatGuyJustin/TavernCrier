@@ -1,0 +1,47 @@
+commands:
+  global:
+    - name: "configure-streams"
+      description: "Configure stream notifications."
+      default_member_permissions: "8"
+      type: 1
+      contexts: [0]
+      options:
+        - name: "streamer"
+          description: "Select an already configured streamer to manage."
+          type: 3
+          autocomplete: true
+          required: false
+    - name: "configure-gambas"
+      description: "Configure gamba for this server"
+      default_member_permissions: "8"
+      type: 1
+      contexts: [0]
+      options: []
+    - name: "gamba"
+      description: "Gamba with your points!"
+      type: 1
+      options:
+        - type: 3
+          name: "amount"
+          description: "The amount of points you wish to gamba | #, %, or \"all\""
+          required: true
+    - name: "duel"
+      description: "Duel an opponent for scales!"
+      type: 1
+      options:
+        - type: 6
+          name: "opponent"
+          description: "Your opponent for battle!"
+          required: true
+        - type: 3
+          name: "amount"
+          description: "The amount to ante for your duel."
+          required: true
+    - name: "accept"
+      description: "Accept a pending duel."
+      type: 1
+      options: []
+    - name: "deny"
+      description: "Deny a pending duel."
+      type: 1
+      options: []

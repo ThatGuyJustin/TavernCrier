@@ -1,0 +1,56 @@
+components:
+  stream_notification_url_button:
+    type: 2
+    style: 5
+    label: " Watch Stream "
+    emoji:
+      name: "🎥"
+  stream_config_add_channel:
+    type: 2
+    style: 2
+    label: "Add Channel"
+    emoji:
+      name: "🐢"
+  stream_config_modify_channel:
+    type: 2
+    style: 2
+    label: "Modify Channel"
+    emoji:
+      name: "📝"
+  confirm_yes:
+    type: 2
+    style: 3
+    label: "Yes"
+    emoji:
+      name: "✅"
+  confirm_no:
+    type: 2
+    style: 4
+    label: "No"
+    emoji:
+      name: "✖"
+  stream_end_go_to_channel:
+    type: 2
+    style: 5
+    label: "Visit Channel"
+embeds:
+  stream_main_configuration:
+    title: "Twitch Notification Configurator"
+    color: 0x8503d1
+    description: |-
+      ## **__Currently Configured Channels__** (`{total_configured}`)
+    
+      {streams_configured}
+  stream_user_confirmation:
+    title: "Is this the user you want?"
+    color: 0x8503d1
+    description: |-
+      **Username**: `{display_name}`
+      * Followers - `{followers}`
+
+      ```
+      {description}
+      ```
+
+strings:
+  stream_main_config_template: "* {streamer} - {channel}"

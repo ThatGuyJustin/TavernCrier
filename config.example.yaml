@@ -1,0 +1,35 @@
+token: "Super-Secret-Token" # Your discord bot token.
+
+# TODO: Update to proper required intents after full feature implimentation...
+intents: 3276799
+bot:
+  commands_enabled: false
+  plugins:
+    - TavernCrier.plugins.core
+    - TavernCrier.plugins.announcements
+
+# Used in announcements plugin, just haven't moved to sub config yet. Will do next patch.
+check_interval: 30 # How often to check for new streams
+live_update_interval: 120 # How often messages configured to live update should be updated.
+
+# These Links May Help You!
+# Create The Application Credentials - https://dev.twitch.tv/console
+# Generate Tokens Easily - https://github.com/swiftyspiffy/twitch-token-generator
+twitch_login:
+  client_id: 'Twitch-Dev-Client_ID'
+  client_secret: 'Twitch-Dev-Client_Secret'
+  refresh_token: 'OAuth-Refresh-Token'
+
+# Database connection info!
+database_info:
+  redis:
+    host: REDIS_HOST
+    port: 6379
+    password: "SomeTotallySecureSuperPasswordI'mSure!!"
+    db: 15 # Can be anything, I just used 15 for project development.
+  postgres:
+    host: POSTGRES_HOST
+    port: 5432
+    username: postgres
+    password: "SomeTotallySecureSuperPasswordI'mSure!"
+    database: TavernCrier
