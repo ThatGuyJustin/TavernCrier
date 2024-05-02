@@ -36,7 +36,7 @@ CONFIGURABLE_COMPONENTS = [
     "tags",
     "preview_image",
     "button",
-    "mature",
+    "mature_badge",
     "live_update",
     "channel_select",
     "save_config",
@@ -211,8 +211,8 @@ class AnnouncementPlugin(Plugin):
             mature_badge_button = MessageComponent()
             mature_badge_button.type = ComponentTypes.BUTTON
             mature_badge_button.label = "Mature Emoji"
-            mature_badge_button.custom_id = "mature"
-            mature_badge_button.style = 3 if 'mature' in enabled_components else 4
+            mature_badge_button.custom_id = "mature_badge"
+            mature_badge_button.style = 3 if 'mature_badge' in enabled_components else 4
             mature_badge_button.emoji = None
             ar_2.add_component(mature_badge_button)
 
@@ -406,7 +406,7 @@ class AnnouncementPlugin(Plugin):
                         main_ar = ActionRow()
                         preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
                         preview_btn.url = f"https://twitch.tv/{stream['user_login']}"
-                        if 'mature' in enabled_components:
+                        if 'mature_badge' in enabled_components:
                             preview_btn.label += "🔞"
                         main_ar.add_component(preview_btn)
                         components = [main_ar]
