@@ -25,11 +25,11 @@
 ## HOW DO TWITCH NOTIFY?
 `/configure-streams [streamer]` Like so:
 
-![Example Gif](https://i.imgur.com/IyScFUf.mp4)
+![Example Gif](https://github.com/ThatGuyJustin/TavernCrier/assets/14909116/e39bdebf-675a-43e6-8658-86ead8c46228)
 
 Alternately
 
-![Example2 Gif](https://i.imgur.com/ON7BQcd.mp4)
+![Example2 Gif](https://github.com/ThatGuyJustin/TavernCrier/assets/14909116/bf9f69e9-0292-4b03-81c2-80afd98d257e)
 
 ## FAQ
 `Q: Will I add *Insert Feature Here*`
