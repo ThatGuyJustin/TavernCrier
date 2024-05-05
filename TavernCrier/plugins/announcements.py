@@ -72,8 +72,6 @@ class AnnouncementPlugin(Plugin):
         except gevent.Timeout as e:
             return None
         if event:
-            # self.log.info(event.data.custom_id)
-            # self.log.info(event.data.custom_id in CONFIGURABLE_COMPONENTS)
             return event
         else:
             return None
@@ -367,10 +365,8 @@ class AnnouncementPlugin(Plugin):
             """)
 
         cfg_dict = {str(row[0]): row[1] for row in configs}
-        # self.log.info(cfg_dict)
 
         to_check_live = "&user_id=".join(cfg_dict.keys())
-        # self.log.info(to_check_live)
 
         code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET", params=f"type=live&first=100&user_id={to_check_live}")
 
@@ -444,21 +440,11 @@ class AnnouncementPlugin(Plugin):
                         if 'live_update' in enabled_components:
                             rdb.json().set(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
 
-        # self.log.info(live_users)
-        #
-        # live_users = {}
-        #
-        # self.log.info(live_users)
-
         currently_live = {}
         if rdb.json().get("currently_live"):
             currently_live = rdb.json().get("currently_live", Path.root_path())
 
-        # self.log.info(currently_live.keys())
-
         prev_live_users = [user for user in currently_live.keys() if user not in live_users.keys()]
-
-        # self.log.info(prev_live_users)
 
         for user in prev_live_users:
             cursor, keys = rdb.scan(0, f"live_update-{user}*")
@@ -512,7 +498,6 @@ class AnnouncementPlugin(Plugin):
         while True:
             preview_embed = self.build_message_embed(enabled_components, streamer, preview=True)
             msg_components = []
-            # self.log.info(enabled_components)
             if 'button' in enabled_components:
                 main_ar = ActionRow()
                 preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
@@ -537,7 +522,6 @@ class AnnouncementPlugin(Plugin):
                     continue
                 error = ""
                 current_working_event.reply(type=6)
-            # self.log.info("edit_message" in CONFIGURABLE_COMPONENTS)
             current_working_event = self.get_next_interaction_event(conditional=
                                                                     lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in CONFIGURABLE_COMPONENTS,
                                                                     timeout=60)
@@ -563,14 +547,7 @@ class AnnouncementPlugin(Plugin):
                             elif type(config.to_dict()[key]) == bool:
                                 setattr(config, key, False)
 
-                        # self.log.info(config.to_dict())
-                        # self.log.info(enabled_components)
-
                         if stream_cfg:
-                            # self.log.info(config.to_dict())
-                            # self.log.info(message)
-                            # self.log.info(selected_channel)
-                            # self.log.info(role)
                             StreamConfigs.update({
                                 StreamConfigs.config: config,
                                 StreamConfigs.messages: [message],
@@ -708,77 +685,43 @@ class AnnouncementPlugin(Plugin):
                         else:
                             enabled_components.append(current_working_event.data.custom_id)
 
-                # if current_working_event.data.custom_id == "next_page_button":
-                #     page += 1
-                #     continue
-                # elif current_working_event.data.custom_id == "previous_page_button":
-                #     page -= 1
-                #     continue
-                # if current_working_event.data.custom_id == "save_config":
-                #     if not selected_channel:
-                #         error = f"`❌ ERROR ❌`: **No Channel Selected**\n\n"
-                #         continue
-                #
-                #     config = StreamNotificationsConfig()
-                #     for key in config.to_dict().keys():
-                #         if key in enabled_components:
-                #             setattr(config, key, True)
-                #         elif type(config.to_dict()[key]) == bool:
-                #             setattr(config, key, False)
-                #
-                #     # self.log.info(config.to_dict())
-                #     # self.log.info(enabled_components)
-                #
-                #     StreamConfigs.create(guild_id=current_working_event.guild.id, notification_channel=selected_channel,
-                #                          streamer_id=streamer['id'],
-                #                          config=config.to_dict())
-                #
-                #     msg.edit(f"Config saved for streamer `{streamer['display_name']}` (<#{selected_channel}>)").after(30)
-                #     msg.delete()
-                #     return
-                # if current_working_event.data.custom_id == "channel_select":
-                #     selected_channel = next(iter(current_working_event.data.resolved.channels))
-                # if current_working_event.data.custom_id in enabled_components:
-                #     enabled_components.remove(current_working_event.data.custom_id)
-                # else:
-                #     enabled_components.append(current_working_event.data.custom_id)
-
     @Plugin.listen("InteractionCreate", conditional=lambda e: e.type == InteractionType.APPLICATION_COMMAND and e.data.name == "configure-streams")
     def configuration_cmd(self, event):
 
         if len(event.data.options):
-            if event.data.options[0].value != "n-a":
-                split = event.data.options[0].value.split("-")
-                streamer_id = int(split[0])
-                channel = int(split[1])
-                scfg = StreamConfigs.select(StreamConfigs).where((StreamConfigs.guild_id == event.guild.id) & (StreamConfigs.streamer_id == streamer_id) & (StreamConfigs.notification_channel == channel)).get()
+            if event.data.options[0].value.startswith("id-"):
+                cfg_id = int(event.data.options[0].value[3:])
+                scfg = StreamConfigs.select(StreamConfigs).where((StreamConfigs.guild_id == event.guild.id) & (StreamConfigs.id == cfg_id)).get()
                 resp_code, ujson = make_twitch_request("https://api.twitch.tv/helix/users", "GET",
                                                                   params={'id': scfg.streamer_id})
                 return self.configure_stream(event=event, msg=None, streamer=ujson['data'][0], stream_cfg=scfg)
 
-        active_configs = list(StreamConfigs.select(StreamConfigs).where(StreamConfigs.guild_id == event.guild.id))
+            # TODO: go right to config setup!
+            if event.data.options[0].value != "n-a":
+                pass
+
+        raw_configs = postgres_db.execute_sql(
+            f"""
+                SELECT 
+                notification_channel, 
+                array_agg(streamer_name) FROM stream_configs 
+                WHERE guild_id = {event.guild.id} GROUP BY notification_channel
+            """)
+
+        active_configs = {str(row[0]): row[1] for row in raw_configs}
 
         embed = MessageEmbed(get_embed_template("stream_main_configuration"))
         tmp_desc = embed.description
-        # tmp_desc = tmp_desc.replace("{total_configured}", len(active_configs))
 
-        streamers = {}
-        for cfg in active_configs:
-            resp_code, ujson = make_twitch_request("https://api.twitch.tv/helix/users", "GET",
-                                                   params={'id': cfg.streamer_id})
-            if streamers.get(cfg.notification_channel):
-                streamers[cfg.notification_channel].append({'user_name': ujson['data'][0]['login'], 'id': cfg.streamer_id})
-            else:
-                streamers[cfg.notification_channel] = [{'user_name': ujson['data'][0]['login'], 'id': cfg.streamer_id}]
-
+        count = 0
         configured_streamers_template = []
-        for channel, streams in streamers.items():
+        for channel, streams in active_configs.items():
             configured_streamers_template.append(f"### <#{channel}>")
-            for stream in streams:
-                configured_streamers_template.append(f"* `{stream['user_name']}`")
+            for streamer in streams:
+                count += 1
+                configured_streamers_template.append(f"* `{streamer}`")
 
-        # tmp_desc = tmp_desc.replace("{streams_configured}", "\n".join(configured_streamers_templates))
-        embed.description = tmp_desc.format(total_configured=str(len(active_configs)), streams_configured="\n".join(configured_streamers_template))
+        embed.description = tmp_desc.format(total_configured=str(count), streams_configured="\n".join(configured_streamers_template))
         ar = ActionRow()
 
         add_channel = MessageComponent(get_component_template("stream_config_add_channel"))
@@ -793,17 +736,6 @@ class AnnouncementPlugin(Plugin):
         msg = event.reply(type=4, embeds=[embed], components=[ar.to_dict()], flags=(1 << 6))
 
         next_command = None
-        # try:
-        #     #  and e.data.name in ["stream_main_config_add_channel", "stream_main_config_modify_channel"]
-        #     next_command = self.wait_for_event("InteractionCreate",
-        #                                        conditional=lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in ["stream_main_config_add_channel", "stream_main_config_modify_channel"] and e.member.id == event.member.id).get(timeout=10)
-        #     # next_command = self.wait_for_event("InteractionCreate").get(timeout=5)
-        #     # self.log.info(next_command.raw_data)
-        #     # self.log.info(next_command.data.name)
-        # except gevent.Timeout as e:
-        #     msg.edit("Timed out.").after(10)
-        #     msg.delete()
-        #     return
 
         next_command = self.get_next_interaction_event(
             conditional=lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in ["stream_main_config_add_channel", "stream_main_config_modify_channel"] and e.member.id == event.member.id,
@@ -932,10 +864,8 @@ class AnnouncementPlugin(Plugin):
                     channel = f"#{channel_obj.name}"
                 else:
                     channel = "#Unknown-Channel"
-                choices.append({'name': f'{option.streamer_name} - {channel}', 'value': f'{option.streamer_id}-{option.notification_channel}'})
+                choices.append({'name': f'[{option.id}] {option.streamer_name} - {channel}', 'value': f'id-{option.id}'})
         else:
             choices.append({'name': "None Matching Your Input.", 'value': "n-a"})
 
         event.reply(type=8, choices=choices)
-    # @Plugin.listen("InteractionCreate", conditional=lambda e: e.type == InteractionType.APPLICATION_COMMAND and e.name == "")
-    # def
