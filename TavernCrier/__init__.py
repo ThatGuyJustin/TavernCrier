@@ -25,7 +25,7 @@ class StreamNotificationsConfig(SlottedModel):
 
 
 class StreamConfig(SlottedModel):
-    defaults = Field(StreamNotificationsConfig, StreamNotificationsConfig())
+    defaults = Field(StreamNotificationsConfig, default=StreamNotificationsConfig())
 
 
 class GambaConfig(SlottedModel):
