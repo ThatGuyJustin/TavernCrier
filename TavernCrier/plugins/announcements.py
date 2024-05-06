@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import gevent
+import requests.exceptions
 from disco.api.http import APIException
 from disco.bot import Plugin
 from disco.types.application import InteractionType
@@ -368,7 +369,27 @@ class AnnouncementPlugin(Plugin):
 
         to_check_live = "&user_id=".join(cfg_dict.keys())
 
-        code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET", params=f"type=live&first=100&user_id={to_check_live}")
+        rjson = None
+        code = None
+
+        retry = 0
+        while retry < 5:
+            try:
+                code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET", params=f"type=live&first=100&user_id={to_check_live}")
+                break
+            except requests.exceptions.ConnectionError as e:
+                retry += 1
+                self.log.error(f"Unable to connect to Twitch's API. Retrying... ({retry}) %s", e)
+                gevent.sleep(1)
+
+        if retry == 5:
+            self.log.error("Max of 5 retries exceeded. Waiting 1 minute before restarting schedule.")
+            active_greenlet = self.schedules['stream_grab_schedule']
+            del self.schedules['stream_grab_schedule']
+            gevent.sleep(60)
+            self.register_schedule(self.stream_grab_schedule, bot_config.check_interval, init=True)
+            self.log.info("Schedule restarted.")
+            active_greenlet.kill()
 
         if code != 200:
             return
