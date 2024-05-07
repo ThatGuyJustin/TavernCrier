@@ -1,8 +1,10 @@
 import requests
 import yaml
 from disco.bot.plugin import Plugin
+from disco.types.message import MessageEmbed
+from disco.util.emitter import Priority
 
-from TavernCrier.models.configs import GuildConfigs
+from TavernCrier import config
 from TavernCrier.redis import rdb
 from TavernCrier.util.twitch import refresh_access_token
 
@@ -23,6 +25,7 @@ class CorePlugin(Plugin):
 
         super(CorePlugin, self).load(ctx)
 
+    # TODO: Bot startup log
     @Plugin.listen("Ready")
     def on_ready(self, event):
         self.log.info(f"Logged into discord as {event.user}")
@@ -36,3 +39,29 @@ class CorePlugin(Plugin):
 
         if commands['commands'].get('guild'):
             self.log.info("NYI.")
+
+    @Plugin.listen("GuildCreate", priority=Priority.BEFORE)
+    def guild_whitelist(self, event):
+
+        if not config.enforce_whitelist:
+            return
+
+        if rdb.exists("guild_whitelist"):
+            redis_whitelist = rdb.lrange("guild_whitelist", 0, -1)
+            if str(event.guild.id) not in redis_whitelist:
+                me = MessageEmbed()
+                me.color = 0xefb435
+                me.title = "🚨 Whitelist Violation 🚨"
+                me.add_field(name="Server Name", value=f"{event.guild.name}\n(`{event.guild.id}`)", inline=True)
+                me.add_field(name="Server Owner", value=f"`{event.guild.owner.user.username}`\n(`{event.guild.owner.id}`)", inline=True)
+                me.add_field(name="Member Count", value=f"`{event.member_count}`", inline=False)
+                if event.guild.description:
+                    me.add_field(name="Description", value=f"```{event.guild.description}```")
+                me.set_thumbnail(url=event.guild.get_icon_url())
+                if event.guild.banner:
+                    me.set_image(url=event.guild.get_banner_url())
+                me.set_footer(text="Joined At")
+                me.timestamp = event.joined_at
+                self.client.api.channels_messages_create(channel=config.logging_channel, embeds=[me])
+
+                event.guild.leave()

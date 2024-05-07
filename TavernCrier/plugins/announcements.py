@@ -382,6 +382,7 @@ class AnnouncementPlugin(Plugin):
                 self.log.error(f"Unable to connect to Twitch's API. Retrying... ({retry}) %s", e)
                 gevent.sleep(1)
 
+        # TODO: Bot Error Log
         if retry == 5:
             self.log.error("Max of 5 retries exceeded. Waiting 1 minute before restarting schedule.")
             active_greenlet = self.schedules['stream_grab_schedule']
@@ -406,7 +407,6 @@ class AnnouncementPlugin(Plugin):
                     mid = None
                     if rdb.json().get(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path()):
                         data = rdb.json().get(f"live_update-{stream['user_id']}_{config['id']}")
-                        # TODO: Decide on updoot timer | Possible: 2 Min (120)?
                         live_users[stream['user_id']].append(
                             {'cid': data['cid'], 'mid': data['mid'], 'username': stream['user_name'],
                              'end_action': config['config']['stream_end_action']})
