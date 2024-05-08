@@ -450,16 +450,19 @@ class AnnouncementPlugin(Plugin):
                             rdb.json().delete(f"live_update-{stream['user_id']}_{config['id']}")
                             continue
                     else:
-                        created_msg = self.client.api.channels_messages_create(config['channel'],
-                                                                               content=msg,
-                                                                               embeds=[embed],
-                                                                               components=[component.to_dict() for component in components],
-                                                                               allowed_mentions={'parse': ["roles", "users", "everyone"]})
+                        try:
+                            created_msg = self.client.api.channels_messages_create(config['channel'],
+                                                                                   content=msg,
+                                                                                   embeds=[embed],
+                                                                                   components=[component.to_dict() for component in components],
+                                                                                   allowed_mentions={'parse': ["roles", "users", "everyone"]})
 
-                        live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
+                            live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
 
-                        if 'live_update' in enabled_components:
-                            rdb.json().set(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
+                            if 'live_update' in enabled_components:
+                                rdb.json().set(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
+                        except APIException as e:
+                            self.log.error(f"Unable to send Message for Config ID {config['id']}: {e.msg}")
 
         currently_live = {}
         if rdb.json().get("currently_live"):
