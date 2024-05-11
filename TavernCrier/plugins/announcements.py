@@ -405,13 +405,16 @@ class AnnouncementPlugin(Plugin):
                     update = False
                     cid = None
                     mid = None
-                    if rdb.json().get(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path()):
-                        data = rdb.json().get(f"live_update-{stream['user_id']}_{config['id']}")
+                    if rdb.exists(f"live_update:{stream['user_id']}:{config['id']}"):
+                        data = rdb.json().get(f"live_update:{stream['user_id']}:{config['id']}")
                         live_users[stream['user_id']].append(
                             {'cid': data['cid'], 'mid': data['mid'], 'username': stream['user_name'],
                              'end_action': config['config']['stream_end_action']})
                         if datetime.now().timestamp() - data['last_updated'] < bot_config.live_update_interval:
                             continue
+                        elif datetime.now().timestamp() - data['last_updated'] >= bot_config.rouge_key_removal_interval:
+                            self.log.error(f"Rouge Live Key Found. Deleting and recreating. Key ID: live_update:{stream['user_id']}:{config['id']}")
+                            rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
                         else:
                             update = True
                             cid = data['cid']
@@ -447,7 +450,7 @@ class AnnouncementPlugin(Plugin):
                             rdb.json().set(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path(), {'mid': mid, 'cid': cid,'last_updated': now.timestamp()})
                         except APIException as e:
                             self.log.error(f"Unable to update message: Streamer: {stream['user_login']} Config ID: {config['id']}. Removing Live Update fromm Redis!")
-                            rdb.json().delete(f"live_update-{stream['user_id']}_{config['id']}")
+                            rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
                             continue
                     else:
                         try:
@@ -460,18 +463,18 @@ class AnnouncementPlugin(Plugin):
                             live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
 
                             if 'live_update' in enabled_components:
-                                rdb.json().set(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
+                                rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
                         except APIException as e:
                             self.log.error(f"Unable to send Message for Config ID {config['id']}: {e.msg}")
 
         currently_live = {}
-        if rdb.json().get("currently_live"):
+        if rdb.exists("currently_live"):
             currently_live = rdb.json().get("currently_live", Path.root_path())
 
         prev_live_users = [user for user in currently_live.keys() if user not in live_users.keys()]
 
         for user in prev_live_users:
-            cursor, keys = rdb.scan(0, f"live_update-{user}*")
+            keys = rdb.keys(f"live_update:{user}:*")
             for key in keys:
                 rdb.json().delete(key)
             for notif in currently_live[user]:

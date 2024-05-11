@@ -15,6 +15,7 @@ logging_channel: CHANNEL_ID
 # Used in announcements plugin, just haven't moved to sub config yet. Will do next patch.
 check_interval: 30 # How often to check for new streams
 live_update_interval: 120 # How often messages configured to live update should be updated.
+rouge_key_removal_interval: 300 # How much time should pass if redis finds a live-update key that shouldn't be there, it'll kill it 🔪
 
 # These Links May Help You!
 # Create The Application Credentials - https://dev.twitch.tv/console
