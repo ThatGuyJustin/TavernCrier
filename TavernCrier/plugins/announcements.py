@@ -447,7 +447,7 @@ class AnnouncementPlugin(Plugin):
                                                                      embeds=[embed],
                                                                      components=components)
 
-                            rdb.json().set(f"live_update-{stream['user_id']}_{config['id']}", Path.root_path(), {'mid': mid, 'cid': cid,'last_updated': now.timestamp()})
+                            rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(), {'mid': mid, 'cid': cid,'last_updated': now.timestamp()})
                         except APIException as e:
                             self.log.error(f"Unable to update message: Streamer: {stream['user_login']} Config ID: {config['id']}. Removing Live Update fromm Redis!")
                             rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
