@@ -17,6 +17,12 @@ components:
     label: "Modify Channel"
     emoji:
       name: "📝"
+  stream_config_promo_settings_edit:
+    type: 2
+    style: 2
+    label: "Auto Promo Settings"
+    emoji:
+      name: "🌟"
   confirm_yes:
     type: 2
     style: 3

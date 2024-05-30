@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 import gevent
@@ -17,6 +18,7 @@ from TavernCrier.redis import rdb
 from TavernCrier.util.template import get_embed_template, get_component_template
 from TavernCrier.util.twitch import make_twitch_request
 
+TWITCH_URL_RE = re.compile(r"(https://twitch\.tv/?[a-zA-Z0-9][\w]{2,24})")
 
 def get_user_avatar(user_id):
     if rdb.get(f'avatar_cache:{user_id}'):
@@ -50,7 +52,8 @@ CONFIGURABLE_COMPONENTS = [
     "next_page",
     "role_select",
     "delete_button",
-    "delete_prank_button"
+    "delete_prank_button",
+    "promo_enabled"
 ]
 
 
@@ -134,7 +137,7 @@ class AnnouncementPlugin(Plugin):
 
         return base_embed
 
-    def get_settings_action_row(self, enabled_components, channel, page, stream_config=None, messages=None, message_selected=False, role_selected=None, dl_button_pressed=False):
+    def get_settings_action_row(self, enabled_components, channel, page, stream_config=None, messages=None, message_selected=False, role_selected=None, dl_button_pressed=False, is_promo=False):
         max_page = 2
 
         to_return = []
@@ -181,6 +184,7 @@ class AnnouncementPlugin(Plugin):
             live_since_button.custom_id = "live_since"
             live_since_button.style = 3 if 'live_since' in enabled_components else 4
             live_since_button.emoji = None
+            live_since_button.disabled = is_promo
             ar_1.add_component(live_since_button)
 
             tags_button = MessageComponent()
@@ -213,6 +217,7 @@ class AnnouncementPlugin(Plugin):
             mature_badge_button.custom_id = "mature_badge"
             mature_badge_button.style = 3 if 'mature_badge' in enabled_components else 4
             mature_badge_button.emoji = None
+            mature_badge_button.disabled = is_promo
             ar_2.add_component(mature_badge_button)
 
             live_update_button = MessageComponent()
@@ -221,6 +226,7 @@ class AnnouncementPlugin(Plugin):
             live_update_button.custom_id = "live_update"
             live_update_button.style = 3 if 'live_update' in enabled_components else 4
             live_update_button.emoji = None
+            live_update_button.disabled = is_promo
             ar_2.add_component(live_update_button)
 
             ar_3 = ActionRow()
@@ -230,7 +236,7 @@ class AnnouncementPlugin(Plugin):
             channel_select.channel_types = [0, 5]
             channel_select.max_values = 1
             channel_select.min_values = 1
-            channel_select.placeholder = "Select Notification Channel"
+            channel_select.placeholder = "Select Notification Channel" if not is_promo else "Select Promotion Channels"
             if channel:
                 channel_select.default_values = [{"id": channel, "type": "channel"}]
             ar_3.add_component(channel_select)
@@ -314,7 +320,7 @@ class AnnouncementPlugin(Plugin):
         previous_page_button.custom_id = "previous_page"
         previous_page_button.label = "⬅"
         previous_page_button.emoji = None
-        previous_page_button.disabled = (page == 1)
+        previous_page_button.disabled = (page == 1) or is_promo
         ar_4.add_component(previous_page_button)
 
         save_button = MessageComponent(emoji=None)
@@ -324,6 +330,15 @@ class AnnouncementPlugin(Plugin):
         save_button.custom_id = "save_config"
         save_button.emoji = None
         ar_4.add_component(save_button)
+
+        if is_promo:
+            promo_enabled_button = MessageComponent()
+            promo_enabled_button.type = ComponentTypes.BUTTON
+            promo_enabled_button.style = 3 if 'promo_enabled' in enabled_components else 4
+            promo_enabled_button.custom_id = "promo_enabled"
+            promo_enabled_button.label = "Enabled"
+            promo_enabled_button.emoji = None
+            ar_4.add_component(promo_enabled_button)
 
         if not dl_button_pressed:
             delete_button = MessageComponent()
@@ -340,16 +355,17 @@ class AnnouncementPlugin(Plugin):
         next_page_button.custom_id = "next_page"
         next_page_button.label = "➡"
         next_page_button.emoji = None
-        next_page_button.disabled = (page == max_page)
+        next_page_button.disabled = (page == max_page) or is_promo
         ar_4.add_component(next_page_button)
 
-        trash_button = MessageComponent()
-        trash_button.type = ComponentTypes.BUTTON
-        trash_button.style = ButtonStyles.SECONDARY
-        trash_button.emoji = {'name': '❌'}
-        trash_button.custom_id = "delete_button"
-        trash_button.disabled = not dl_button_pressed
-        ar_4.add_component(trash_button)
+        if not is_promo:
+            trash_button = MessageComponent()
+            trash_button.type = ComponentTypes.BUTTON
+            trash_button.style = ButtonStyles.SECONDARY
+            trash_button.emoji = {'name': '❌'}
+            trash_button.custom_id = "delete_button"
+            trash_button.disabled = not dl_button_pressed
+            ar_4.add_component(trash_button)
 
         to_return.append(ar_4.to_dict())
 
@@ -502,8 +518,8 @@ class AnnouncementPlugin(Plugin):
         rdb.json().delete("currently_live", Path.root_path())
         rdb.json().set("currently_live", Path.root_path(), live_users)
 
+    def configure_stream(self, event, msg, streamer, initial_setup=False, stream_cfg=None, promo_setup=False):
 
-    def configure_stream(self, event, msg, streamer, initial_setup=False, stream_cfg=None):
         current_working_event = event
         dl_button_pressed = False
         gcfg, created = GuildConfigs.get_or_create(guild_id=event.guild.id)
@@ -522,6 +538,12 @@ class AnnouncementPlugin(Plugin):
             selected_channel = stream_cfg.notification_channel
             message = stream_cfg.messages[0]
             role = stream_cfg.notification_role
+        if promo_setup:
+            enabled_components = [key for key, value in gcfg.config.promotional_settings.promo_config.to_dict().items() if
+                                  value is True and key not in ["live_since", "mature_badge", "live_update"]]
+            if gcfg.config.promotional_settings.enabled:
+                enabled_components.append("promo_enabled")
+            selected_channel = gcfg.config.promotional_settings.promo_channel
         while True:
             preview_embed = self.build_message_embed(enabled_components, streamer, preview=True)
             msg_components = []
@@ -534,7 +556,7 @@ class AnnouncementPlugin(Plugin):
                 main_ar.add_component(preview_btn)
                 msg_components.append(main_ar.to_dict())
 
-            settings_ar = self.get_settings_action_row(enabled_components, selected_channel, page, role_selected=role, dl_button_pressed=dl_button_pressed)
+            settings_ar = self.get_settings_action_row(enabled_components, selected_channel, page, role_selected=role, dl_button_pressed=dl_button_pressed, is_promo=promo_setup)
             msg_components += settings_ar
             if not msg:
                 msg = event.reply(type=4, content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed],
@@ -563,6 +585,7 @@ class AnnouncementPlugin(Plugin):
                     case "previous_page":
                         page -= 1
                     case "save_config":
+
                         if not selected_channel:
                             error = f"`❌ ERROR ❌`: **No Channel Selected**\n\n"
                             continue
@@ -573,6 +596,17 @@ class AnnouncementPlugin(Plugin):
                                 setattr(config, key, True)
                             elif type(config.to_dict()[key]) == bool:
                                 setattr(config, key, False)
+                        # "promo_channels": ["1", "2", "2", "9", "6", "2", "3", "6", "3", "6", "3", "5", "3", "0", "9", "3", "6", "8", "3"],
+                        if promo_setup:
+                            self.log.info(selected_channel)
+                            gcfg.config.promotional_settings.enabled = "promo_enabled" in enabled_components
+                            gcfg.config.promotional_settings.promo_channel = selected_channel
+                            gcfg.config.promotional_settings.promo_config = config
+                            gcfg.save()
+                            msg.edit(
+                                f"Promo Template Saved.").after(30)
+                            msg.delete()
+                            return
 
                         if stream_cfg:
                             StreamConfigs.update({
@@ -754,18 +788,21 @@ class AnnouncementPlugin(Plugin):
         add_channel = MessageComponent(get_component_template("stream_config_add_channel"))
         add_channel.custom_id = "stream_main_config_add_channel"
 
+        modify_promo_settings = MessageComponent(get_component_template("stream_config_promo_settings_edit"))
+        modify_promo_settings.custom_id = "stream_config_promo_settings_edit"
+
         # modify_channel = MessageComponent(get_component_template("stream_config_modify_channel"))
         # modify_channel.custom_id = "stream_main_config_modify_channel"
 
         ar.add_component(add_channel)
-        # ar.add_component(modify_channel)
+        ar.add_component(modify_promo_settings)
 
         msg = event.reply(type=4, embeds=[embed], components=[ar.to_dict()], flags=(1 << 6))
 
         next_command = None
 
         next_command = self.get_next_interaction_event(
-            conditional=lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in ["stream_main_config_add_channel", "stream_main_config_modify_channel"] and e.member.id == event.member.id,
+            conditional=lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in ["stream_main_config_add_channel", "stream_config_promo_settings_edit"] and e.member.id == event.member.id,
             timeout=60
         )
 
@@ -817,56 +854,62 @@ class AnnouncementPlugin(Plugin):
                     ar.add_component(confirm_yes)
                     ar.add_component(confirm_no)
 
-                    if len(rjson["data"]) == 0:
+                    if rjson.get("data"):
+                        if len(rjson["data"]) == 0:
 
-                        msg.edit(f"**Error**: There is no twitch user with the username `{submitted}`. Would you like to retry?", components=[ar.to_dict()])
-                        current_working_event = self.get_next_interaction_event(
-                            conditional=lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in ["stream_add_channel_confirm_username_yes", "stream_add_channel_confirm_username_no"] and e.member.id == event.member.id,
-                            timeout=60
-                        )
+                            msg.edit(f"**Error**: There is no twitch user with the username `{submitted}`. Would you like to retry?", components=[ar.to_dict()])
+                            current_working_event = self.get_next_interaction_event(
+                                conditional=lambda e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in ["stream_add_channel_confirm_username_yes", "stream_add_channel_confirm_username_no"] and e.member.id == event.member.id,
+                                timeout=60
+                            )
 
-                        if not current_working_event:
-                            msg.edit("Timed out.").after(10)
-                            msg.delete()
+                            if not current_working_event:
+                                msg.edit("Timed out.").after(10)
+                                msg.delete()
+                                break
+
+                            if current_working_event.data.custom_id == "stream_add_channel_confirm_username_no":
+                                msg.edit("\👌 Alright, feel free to try again later!").after(5)
+                                msg.delete()
+                                break
+                            elif current_working_event.data.custom_id == "stream_add_channel_confirm_username_yes":
+                                continue
+                        else:
+                            resp_code, sjson = make_twitch_request("https://api.twitch.tv/helix/channels/followers", "GET",
+                                                                   params={'broadcaster_id': rjson["data"][0]["id"], 'first': 1})
+                            embed = MessageEmbed(get_embed_template("stream_user_confirmation"))
+                            tmp_desc = embed.description
+                            tmp_desc = tmp_desc.replace("{display_name}", rjson["data"][0]["display_name"])
+                            tmp_desc = tmp_desc.replace("{followers}", str(sjson["total"]))
+                            # tmp_desc = tmp_desc.replace("{title}", f"*{rjson['data'][0]['type']}*")
+                            embed.description = tmp_desc.replace("{description}", f"{rjson['data'][0]['description']}")
+                            embed.set_thumbnail(url=rjson["data"][0]["profile_image_url"])
+                            embed.set_image(url=rjson["data"][0]["offline_image_url"])
+                            msg.edit(embeds=[embed], components=[ar.to_dict()])
+
+                            current_working_event = self.get_next_interaction_event(
+                                conditional=lambda
+                                    e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in [
+                                    "stream_add_channel_confirm_username_yes",
+                                    "stream_add_channel_confirm_username_no"] and e.member.id == event.member.id,
+                                timeout=60
+                            )
+
+                            if not current_working_event:
+                                msg.edit("Timed out.").after(10)
+                                msg.delete()
+                                break
+
+                            if current_working_event.data.custom_id == "stream_add_channel_confirm_username_no":
+                                continue
+                            elif current_working_event.data.custom_id == "stream_add_channel_confirm_username_yes":
+                                return self.configure_stream(current_working_event, msg, rjson["data"][0], initial_setup=True)
                             break
-
-                        if current_working_event.data.custom_id == "stream_add_channel_confirm_username_no":
-                            msg.edit("\👌 Alright, feel free to try again later!").after(5)
-                            msg.delete()
-                            break
-                        elif current_working_event.data.custom_id == "stream_add_channel_confirm_username_yes":
-                            continue
                     else:
-                        resp_code, sjson = make_twitch_request("https://api.twitch.tv/helix/channels/followers", "GET",
-                                                               params={'broadcaster_id': rjson["data"][0]["id"], 'first': 1})
-                        embed = MessageEmbed(get_embed_template("stream_user_confirmation"))
-                        tmp_desc = embed.description
-                        tmp_desc = tmp_desc.replace("{display_name}", rjson["data"][0]["display_name"])
-                        tmp_desc = tmp_desc.replace("{followers}", str(sjson["total"]))
-                        # tmp_desc = tmp_desc.replace("{title}", f"*{rjson['data'][0]['type']}*")
-                        embed.description = tmp_desc.replace("{description}", f"{rjson['data'][0]['description']}")
-                        embed.set_thumbnail(url=rjson["data"][0]["profile_image_url"])
-                        embed.set_image(url=rjson["data"][0]["offline_image_url"])
-                        msg.edit(embeds=[embed], components=[ar.to_dict()])
-
-                        current_working_event = self.get_next_interaction_event(
-                            conditional=lambda
-                                e: e.type == InteractionType.MESSAGE_COMPONENT and e.data.custom_id in [
-                                "stream_add_channel_confirm_username_yes",
-                                "stream_add_channel_confirm_username_no"] and e.member.id == event.member.id,
-                            timeout=60
-                        )
-
-                        if not current_working_event:
-                            msg.edit("Timed out.").after(10)
-                            msg.delete()
-                            break
-
-                        if current_working_event.data.custom_id == "stream_add_channel_confirm_username_no":
-                            continue
-                        elif current_working_event.data.custom_id == "stream_add_channel_confirm_username_yes":
-                            return self.configure_stream(current_working_event, msg, rjson["data"][0], initial_setup=True)
-                        break
+                        return msg.edit("`Internal Error: Please Try Again. If issue persist, Please reach out to @ThatRandoJustin`")
+            elif next_command.data.custom_id == "stream_config_promo_settings_edit":
+                status_code, rjson = make_twitch_request("https://api.twitch.tv/helix/users", "GET", params={"login": "twitchdev"})
+                self.configure_stream(next_command, msg, rjson["data"][0], promo_setup=True)
         else:
             msg.edit("Timed out.").after(10)
             msg.delete()
@@ -896,3 +939,78 @@ class AnnouncementPlugin(Plugin):
             choices.append({'name': "None Matching Your Input.", 'value': "n-a"})
 
         event.reply(type=8, choices=choices)
+
+    @Plugin.listen("MessageCreate", conditional=lambda e: e.channel.is_guild and not e.author.bot)
+    def promotional_messages(self, event):
+
+        # Grab config for guild, if there is one. If not, ignore!
+        guild_config = GuildConfigs.get(guild_id=event.guild.id)
+
+        if not guild_config:
+            return
+
+        # Enable check
+        if not guild_config.config.promotional_settings.enabled:
+            return
+
+        # Channel check
+        if event.channel.id != guild_config.config.promotional_settings.promo_channel:
+            return
+
+        # # Test Case
+        # if event.channel.id != 1229623636353093683:
+        #     return
+
+        # Check for a valid twitch link
+        matches = TWITCH_URL_RE.findall(event.content)
+        if len(matches) == 0:
+            return
+
+        # Only use first match, and replace it to not embed in content
+        user_url_to_convert = matches[0]
+        user = user_url_to_convert.replace("https://twitch.tv/", "")
+        new_content = event.content.replace(user_url_to_convert, f"<{user_url_to_convert}>", -1)
+
+        # Check if the user is actually live...and actually exists...!
+        resp_code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET",
+                                               params={'user_login': user.lower(), 'type': "live"})
+
+        if not rjson.get("data") or len(rjson['data']) == 0:
+            return
+
+        # Let's craft that message!
+        enabled_components = [component for component, value in guild_config.config.promotional_settings.promo_config.to_dict().items() if value == True]
+        embed = self.build_message_embed(enabled_components, rjson["data"][0])
+        embed.set_footer(icon_url=event.author.avatar_url, text=f"Promoted by {event.author.username}")
+        components = None
+        if 'button' in enabled_components:
+            main_ar = ActionRow()
+            preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
+            preview_btn.url = user_url_to_convert
+            if rjson['data'][0]['is_mature']:
+                preview_btn.label += "🔞"
+            main_ar.add_component(preview_btn)
+            components = [main_ar]
+
+        try:
+            self.log.info(new_content)
+            created_msg = self.client.api.channels_messages_create(event.channel.id,
+                                                                   content=new_content,
+                                                                   embeds=[embed],
+                                                                   components=[component.to_dict() for component in
+                                                                               components],
+                                                                   allowed_mentions={})
+        except APIException as e:
+            if e.code == [50001]:
+                return
+            else:
+                self.log.error(f"[Promotional Messages] Failed to send promo message: Channel: {event.channel.id} Author: {event.author} Guild: {event.guild.id} --")
+                raise e
+
+        try:
+            event.delete()
+        except APIException as e:
+            if e.code == [50013]:
+                self.log.error(
+                    f"[Promotional Messages] Failed to delete original promo message: Channel: {event.channel.id} Author: {event.author} Guild: {event.guild.id} --")
+                return

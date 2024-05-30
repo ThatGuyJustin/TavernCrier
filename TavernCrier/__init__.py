@@ -1,4 +1,4 @@
-from disco.types.base import SlottedModel, Field
+from disco.types.base import SlottedModel, Field, snowflake, ListField, text
 from disco.util.config import Config
 
 config = Config.from_file("./config.yaml")
@@ -24,6 +24,12 @@ class StreamNotificationsConfig(SlottedModel):
     stream_end_action = Field(int, default=StreamEndedAction.EDIT_MESSAGE)
 
 
+class StreamPromotionalSettings(SlottedModel):
+    enabled = Field(bool, default=False)
+    promo_channel = Field(snowflake, default=None)
+    promo_config = Field(StreamNotificationsConfig, default=StreamNotificationsConfig())
+
+
 class StreamConfig(SlottedModel):
     defaults = Field(StreamNotificationsConfig, default=StreamNotificationsConfig())
 
@@ -35,3 +41,4 @@ class GambaConfig(SlottedModel):
 class GuildConfig(SlottedModel):
     gamba = Field(GambaConfig, default=GambaConfig())
     stream_notifications = Field(StreamConfig, default=StreamConfig())
+    promotional_settings = Field(StreamPromotionalSettings, default=StreamPromotionalSettings())

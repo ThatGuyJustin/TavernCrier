@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "taverncrier"
 version = "1.0.0"
-description = ""
+description = "A discord bot providing Twitch Notifications, Gamba, and other utilities."
 authors = ["Justin <justin@aperturebot.science>"]
 readme = "README.md"
 
