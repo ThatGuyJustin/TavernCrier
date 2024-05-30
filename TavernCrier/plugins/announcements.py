@@ -940,7 +940,7 @@ class AnnouncementPlugin(Plugin):
 
         event.reply(type=8, choices=choices)
 
-    @Plugin.listen("MessageCreate", conditional=lambda e: e.guild is not None and not e.author.bot)
+    @Plugin.listen("MessageCreate", conditional=lambda e: not e.author.bot and e.guild is not None)
     def promotional_messages(self, event):
 
         # Grab config for guild, if there is one. If not, ignore!
