@@ -25,6 +25,14 @@ commands:
           name: "amount"
           description: "The amount of points you wish to gamba | #, %, or \"all\""
           required: true
+    - name: "balance"
+      description: "Check your gold."
+      type: 1
+      contexts: [0]
+      options:
+        - type: 6
+          name: "user"
+          description: "Select a user to check their balance."
     - name: "duel"
       description: "Duel an opponent for scales!"
       type: 1

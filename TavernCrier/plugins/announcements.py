@@ -470,10 +470,12 @@ class AnnouncementPlugin(Plugin):
                             continue
                     else:
                         try:
+                            if components:
+                                components = [component.to_dict() for component in components]
                             created_msg = self.client.api.channels_messages_create(config['channel'],
                                                                                    content=msg,
                                                                                    embeds=[embed],
-                                                                                   components=[component.to_dict() for component in components],
+                                                                                   components=components,
                                                                                    allowed_mentions={'parse': ["roles", "users", "everyone"]})
 
                             live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})

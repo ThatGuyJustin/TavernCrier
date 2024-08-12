@@ -1,0 +1,13 @@
+gamba:
+  # Variables
+  # {pre_balance} - Balance before the action.
+  # {balance} - Balance after calculation.
+  # {amount} - Amount of gold they gamba'd away
+  gamba_success_all_in:
+    - "You have doubled your monies!"
+  gamba_fail_all_in:
+    - "Sorry, but you're now as poor as Dandi usually is."
+  gamba_success:
+    - "You have added **{amount}** gold to your loot adventurer! [`{pre_balance} ➡ {balance}`]"
+  gamba_fail:
+    - "You have dropped **{amount}** gold from your loot adventurer! [`{pre_balance} ➡ {balance}`]"
