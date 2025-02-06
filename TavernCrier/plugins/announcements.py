@@ -393,7 +393,7 @@ class AnnouncementPlugin(Plugin):
             try:
                 code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET", params=f"type=live&first=100&user_id={to_check_live}")
                 break
-            except requests.exceptions.ConnectionError as e:
+            except Exception as e:
                 retry += 1
                 self.log.error(f"Unable to connect to Twitch's API. Retrying... ({retry}) %s", e)
                 gevent.sleep(1)
