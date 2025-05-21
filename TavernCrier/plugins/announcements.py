@@ -7,7 +7,7 @@ from disco.api.http import APIException
 from disco.bot import Plugin
 from disco.types.application import InteractionType
 from disco.types.message import MessageEmbed, ActionRow, MessageComponent, ComponentTypes, ButtonStyles, MessageModal, \
-    TextInputStyles, SelectOption
+    TextInputStyles, SelectOption, ButtonComponent
 from pytz import timezone
 from redis.commands.json.path import Path
 
@@ -440,7 +440,7 @@ class AnnouncementPlugin(Plugin):
                     components = None
                     if 'button' in enabled_components:
                         main_ar = ActionRow()
-                        preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
+                        preview_btn = ButtonComponent(get_component_template("stream_notification_url_button"))
                         preview_btn.url = f"https://twitch.tv/{stream['user_login']}"
                         if 'mature_badge' in enabled_components:
                             preview_btn.label += "🔞"
