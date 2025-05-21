@@ -1,3 +1,4 @@
+import gevent
 import requests
 import yaml
 from disco.bot.plugin import Plugin
@@ -28,17 +29,27 @@ class CorePlugin(Plugin):
     # TODO: Bot startup log
     @Plugin.listen("Ready")
     def on_ready(self, event):
-        self.log.info(f"Logged into discord as {event.user}")
-        self.log.info("Updating registered commands...")
-        with open("./data/commands.yaml", "r") as raw_commands:
-            commands = yaml.safe_load(raw_commands)
+        if self.bot.client.gw.reconnects:
+            self.log.info("[Bot GW Reconnect] Restarting live schedule.")
+            active_greenlet = self.bot.plugins["AnnouncementPlugin"].schedules['stream_grab_schedule']
+            del self.bot.plugins["AnnouncementPlugin"].schedules['stream_grab_schedule']
+            gevent.sleep(10)
+            self.bot.plugins["AnnouncementPlugin"].register_schedule(self.bot.plugins["AnnouncementPlugin"].stream_grab_schedule, config.check_interval, init=True)
+            self.log.info("[Bot GW Reconnect] Live schedule restarted.")
+            active_greenlet.kill()
+        else:
+            self.log.info(f"Logged into discord as {event.user}")
+            self.log.info("Updating registered commands...")
+            with open("./data/commands.yaml", "r") as raw_commands:
+                commands = yaml.safe_load(raw_commands)
 
-        if commands['commands'].get('global'):
-            new_commands = self.client.api.applications_global_commands_bulk_overwrite(commands['commands']['global'])
-            self.log.info(f"Updated {len(new_commands)} global commands")
+            if commands['commands'].get('global'):
+                new_commands = self.client.api.applications_global_commands_bulk_overwrite(
+                    commands['commands']['global'])
+                self.log.info(f"Updated {len(new_commands)} global commands")
 
-        if commands['commands'].get('guild'):
-            self.log.info("NYI.")
+            if commands['commands'].get('guild'):
+                self.log.info("NYI.")
 
     @Plugin.listen("GuildCreate", priority=Priority.BEFORE)
     def guild_whitelist(self, event):

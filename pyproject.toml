@@ -1,20 +1,24 @@
-[tool.poetry]
+[project]
 name = "taverncrier"
 version = "1.0.0"
 description = "A discord bot providing Twitch Notifications, Gamba, and other utilities."
-authors = ["Justin <justin@aperturebot.science>"]
+authors = [
+    {name = "Justin",email = "justin@aperturebot.science"}
+]
+license = {text = "MIT"}
 readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "betterdisco-py[performace,yaml] (>=2024.10.10,<2025.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
+    "peewee (>=3.18.1,<4.0.0)",
+    "redis (>=6.1.0,<7.0.0)",
+    "pytz (>=2025.2,<2026.0)"
+]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-betterdisco-py = {git = "https://github.com/elderlabs/BetterDisco.git", rev = "staging/justin", extras = ["performance", "yaml"]}
-psycopg2-binary = "^2.9.9"
-peewee = "^3.17.5"
-pyyaml = "^6.0.1"
-redis = "^5.0.4"
-pytz = "^2024.1"
-
+betterdisco-py = { git = "https://github.com/elderlabs/BetterDisco.git", rev = "d421b17637ecbfe2def73844b64729753ec740b2" }
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
