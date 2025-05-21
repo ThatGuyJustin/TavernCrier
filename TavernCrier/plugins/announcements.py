@@ -6,8 +6,8 @@ import requests.exceptions
 from disco.api.http import APIException
 from disco.bot import Plugin
 from disco.types.application import InteractionType
-from disco.types.message import MessageEmbed, ActionRow, MessageComponent, ComponentTypes, ButtonStyles, MessageModal, \
-    TextInputStyles, SelectOption, ButtonComponent
+from disco.types.message import MessageEmbed, ActionRow, ComponentTypes, ButtonStyles, MessageModal, \
+    TextInputStyles, SelectOption, ButtonComponent, SelectMenuComponent, TextInputComponent, component
 from pytz import timezone
 from redis.commands.json.path import Path
 
@@ -146,97 +146,42 @@ class AnnouncementPlugin(Plugin):
             ar_1 = ActionRow()
             ar_2 = ActionRow()
 
-            username_button = MessageComponent()
-            username_button.type = ComponentTypes.BUTTON
-            username_button.label = "Username"
-            username_button.custom_id = "username"
-            username_button.style = 3 if 'username' in enabled_components else 4
-            username_button.emoji = None
+            username_button = ButtonComponent(label="Username", custom_id="username", style=3 if 'username' in enabled_components else 4)
             ar_1.add_component(username_button)
 
-            title_button = MessageComponent()
-            title_button.type = ComponentTypes.BUTTON
-            title_button.label = "Title"
-            title_button.custom_id = "title"
-            title_button.style = 3 if 'title' in enabled_components else 4
-            title_button.emoji = None
+            title_button = ButtonComponent(label="Title", custom_id="title", style=3 if 'title' in enabled_components else 4)
             ar_1.add_component(title_button)
 
-            game_button = MessageComponent()
-            game_button.type = ComponentTypes.BUTTON
-            game_button.label = "Category"
-            game_button.custom_id = "category"
-            game_button.style = 3 if 'category' in enabled_components else 4
-            game_button.emoji = None
+            game_button = ButtonComponent(label="Category", custom_id="category", style=3 if 'category' in enabled_components else 4)
             ar_1.add_component(game_button)
 
-            viewers_button = MessageComponent()
-            viewers_button.type = ComponentTypes.BUTTON
-            viewers_button.label = "Viewers"
-            viewers_button.custom_id = "viewers"
-            viewers_button.style = 3 if 'viewers' in enabled_components else 4
-            viewers_button.emoji = None
+            viewers_button = ButtonComponent(label="Viewers", custom_id="viewers", style=3 if 'viewers' in enabled_components else 4)
             ar_1.add_component(viewers_button)
 
-            live_since_button = MessageComponent()
-            live_since_button.type = ComponentTypes.BUTTON
-            live_since_button.label = "Live Since"
-            live_since_button.custom_id = "live_since"
-            live_since_button.style = 3 if 'live_since' in enabled_components else 4
-            live_since_button.emoji = None
-            live_since_button.disabled = is_promo
+            # live_since_button.disabled = is_promo
+            live_since_button = ButtonComponent(label="Live Since", custom_id="live_since", style=3 if 'live_since' in enabled_components else 4, disabled=is_promo)
             ar_1.add_component(live_since_button)
 
-            tags_button = MessageComponent()
-            tags_button.type = ComponentTypes.BUTTON
-            tags_button.label = "Tags"
-            tags_button.custom_id = "tags"
-            tags_button.style = 3 if 'tags' in enabled_components else 4
-            tags_button.emoji = None
+            tags_button = ButtonComponent(label="Tags", custom_id="tags", style=3 if 'tags' in enabled_components else 4)
             ar_2.add_component(tags_button)
 
-            preview_image_button = MessageComponent()
-            preview_image_button.type = ComponentTypes.BUTTON
-            preview_image_button.label = "Preview Image"
-            preview_image_button.custom_id = "preview_image"
-            preview_image_button.style = 3 if 'preview_image' in enabled_components else 4
-            preview_image_button.emoji = None
+            preview_image_button = ButtonComponent(label="Preview Image", custom_id="preview_image", style=3 if 'preview_image' in enabled_components else 4)
             ar_2.add_component(preview_image_button)
 
-            btn_button = MessageComponent()
-            btn_button.type = ComponentTypes.BUTTON
-            btn_button.label = "Click to Watch Button"
-            btn_button.custom_id = "button"
-            btn_button.style = 3 if 'button' in enabled_components else 4
-            btn_button.emoji = None
+            btn_button = ButtonComponent(label="Click to Watch Button", custom_id="button", style=3 if 'button' in enabled_components else 4)
             ar_2.add_component(btn_button)
 
-            mature_badge_button = MessageComponent()
-            mature_badge_button.type = ComponentTypes.BUTTON
-            mature_badge_button.label = "Mature Emoji"
-            mature_badge_button.custom_id = "mature_badge"
-            mature_badge_button.style = 3 if 'mature_badge' in enabled_components else 4
-            mature_badge_button.emoji = None
-            mature_badge_button.disabled = is_promo
+            # mature_badge_button.disabled = is_promo
+            mature_badge_button = ButtonComponent(label="Mature Emoji", custom_id="mature_badge", style=3 if 'mature_badge' in enabled_components else 4, disabled = is_promo)
             ar_2.add_component(mature_badge_button)
 
-            live_update_button = MessageComponent()
-            live_update_button.type = ComponentTypes.BUTTON
-            live_update_button.label = "Live Update Message"
-            live_update_button.custom_id = "live_update"
-            live_update_button.style = 3 if 'live_update' in enabled_components else 4
-            live_update_button.emoji = None
-            live_update_button.disabled = is_promo
+            # live_update_button.disabled = is_promo
+            live_update_button = ButtonComponent(label="Live Update Message", custom_id="live_update", style=3 if 'live_update' in enabled_components else 4, disabled=True)
             ar_2.add_component(live_update_button)
 
             ar_3 = ActionRow()
-            channel_select = MessageComponent()
-            channel_select.type = ComponentTypes.CHANNEL_SELECT
-            channel_select.custom_id = "channel_select"
-            channel_select.channel_types = [0, 5]
-            channel_select.max_values = 1
-            channel_select.min_values = 1
-            channel_select.placeholder = "Select Notification Channel" if not is_promo else "Select Promotion Channels"
+            channel_select = SelectMenuComponent(type=ComponentTypes.CHANNEL_SELECT, custom_id="channel_select", channel_types=[0, 5], max_values=1, min_values=1,
+                                                 placeholder="Select Notification Channel" if not is_promo else "Select Promotion Channels")
             if channel:
                 channel_select.default_values = [{"id": channel, "type": "channel"}]
             ar_3.add_component(channel_select)
@@ -245,24 +190,14 @@ class AnnouncementPlugin(Plugin):
 
         if page == 2:
             ar_1 = ActionRow()
-            role_ping_select = MessageComponent()
-            role_ping_select.type = ComponentTypes.ROLE_SELECT
-            role_ping_select.custom_id = "role_select"
-            role_ping_select.placeholder = "Select a role to ping."
-            role_ping_select.max_values = 1
-            role_ping_select.min_values = 0
+            role_ping_select = SelectMenuComponent(type=ComponentTypes.ROLE_SELECT, custom_id="role_select", max_values=1, min_values=0, placeholder="Select a role to ping.")
+
             if role_selected:
                 role_ping_select.default_values = [{"id": role_selected, "type": "role"}]
             ar_1.add_component(role_ping_select)
 
             ar_2 = ActionRow()
-            edit_message_button = MessageComponent()
-            edit_message_button.type = ComponentTypes.BUTTON
-            edit_message_button.style = ButtonStyles.SECONDARY
-            edit_message_button.custom_id = "edit_message"
-            edit_message_button.label = "Edit Message"
-            # edit_message_button.disabled = not message_selected
-            edit_message_button.emoji = {'name': "📝"}
+            edit_message_button = ButtonComponent(style=ButtonStyles.SECONDARY, custom_id="edit_message", label="Edit Message", emoji={'name': "📝"})
             ar_2.add_component(edit_message_button)
 
             to_return += [ar_1.to_dict(), ar_2.to_dict()]
@@ -314,57 +249,26 @@ class AnnouncementPlugin(Plugin):
 
         ar_4 = ActionRow()
 
-        previous_page_button = MessageComponent()
-        previous_page_button.type = ComponentTypes.BUTTON
-        previous_page_button.style = ButtonStyles.SECONDARY
-        previous_page_button.custom_id = "previous_page"
-        previous_page_button.label = "⬅"
-        previous_page_button.emoji = None
-        previous_page_button.disabled = (page == 1) or is_promo
+        # previous_page_button.disabled = (page == 1) or is_promo
+        previous_page_button = ButtonComponent(style = ButtonStyles.SECONDARY, custom_id = "previous_page", label = "⬅", disabled = (page == 1) or is_promo)
         ar_4.add_component(previous_page_button)
 
-        save_button = MessageComponent(emoji=None)
-        save_button.type = ComponentTypes.BUTTON
-        save_button.style = ButtonStyles.PRIMARY
-        save_button.label = "Save"
-        save_button.custom_id = "save_config"
-        save_button.emoji = None
+        save_button = ButtonComponent(style = ButtonStyles.PRIMARY, label="Save", custom_id="save_config")
         ar_4.add_component(save_button)
 
         if is_promo:
-            promo_enabled_button = MessageComponent()
-            promo_enabled_button.type = ComponentTypes.BUTTON
-            promo_enabled_button.style = 3 if 'promo_enabled' in enabled_components else 4
-            promo_enabled_button.custom_id = "promo_enabled"
-            promo_enabled_button.label = "Enabled"
-            promo_enabled_button.emoji = None
+            promo_enabled_button = ButtonComponent(style = 3 if 'promo_enabled' in enabled_components else 4, custom_id = "promo_enabled", label = "Enabled")
             ar_4.add_component(promo_enabled_button)
 
         if not dl_button_pressed:
-            delete_button = MessageComponent()
-            delete_button.type = ComponentTypes.BUTTON
-            delete_button.style = ButtonStyles.DANGER
-            delete_button.label = "Delete Button"
-            delete_button.custom_id = "delete_prank_button"
-            delete_button.emoji = None
+            delete_button = ButtonComponent(style=ButtonStyles.DANGER, label="Delete Button", custom_id="delete_prank_button")
             ar_4.add_component(delete_button)
 
-        next_page_button = MessageComponent(emoji=None)
-        next_page_button.type = ComponentTypes.BUTTON
-        next_page_button.style = ButtonStyles.SECONDARY
-        next_page_button.custom_id = "next_page"
-        next_page_button.label = "➡"
-        next_page_button.emoji = None
-        next_page_button.disabled = (page == max_page) or is_promo
+        next_page_button = ButtonComponent(style = ButtonStyles.SECONDARY, custom_id = "next_page", label = "➡", disabled = (page == max_page) or is_promo)
         ar_4.add_component(next_page_button)
 
         if not is_promo:
-            trash_button = MessageComponent()
-            trash_button.type = ComponentTypes.BUTTON
-            trash_button.style = ButtonStyles.SECONDARY
-            trash_button.emoji = {'name': '❌'}
-            trash_button.custom_id = "delete_button"
-            trash_button.disabled = not dl_button_pressed
+            trash_button = ButtonComponent(style=ButtonStyles.SECONDARY, custom_id="delete_button", disabled = not dl_button_pressed, emoji = {'name': '❌'})
             ar_4.add_component(trash_button)
 
         to_return.append(ar_4.to_dict())
@@ -435,7 +339,7 @@ class AnnouncementPlugin(Plugin):
                             update = True
                             cid = data['cid']
                             mid = data['mid']
-                    enabled_components = [component for component, value in config['config'].items() if value == True]
+                    enabled_components = [c for c, value in config['config'].items() if value == True]
                     embed = self.build_message_embed(enabled_components, stream)
                     components = None
                     if 'button' in enabled_components:
@@ -471,7 +375,7 @@ class AnnouncementPlugin(Plugin):
                     else:
                         try:
                             if components:
-                                components = [component.to_dict() for component in components]
+                                components = [c.to_dict() for c in components]
                             created_msg = self.client.api.channels_messages_create(config['channel'],
                                                                                    content=msg,
                                                                                    embeds=[embed],
@@ -500,7 +404,7 @@ class AnnouncementPlugin(Plugin):
                     try:
                         msg = self.client.api.channels_messages_get(channel=notif['cid'], message=notif['mid'])
                         ar = ActionRow()
-                        go_to_btn = MessageComponent(get_component_template("stream_end_go_to_channel"))
+                        go_to_btn = component(get_component_template("stream_end_go_to_channel"))
                         go_to_btn.emoji = None
                         go_to_btn.url = f"https://twitch.tv/{notif['username']}"
                         ar.add_component(go_to_btn)
@@ -551,7 +455,7 @@ class AnnouncementPlugin(Plugin):
             msg_components = []
             if 'button' in enabled_components:
                 main_ar = ActionRow()
-                preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
+                preview_btn = component(get_component_template("stream_notification_url_button"))
                 preview_btn.url = f"https://twitch.tv/{streamer['login']}"
                 if 'mature_badge' in enabled_components:
                     preview_btn.label += "🔞"
@@ -561,11 +465,11 @@ class AnnouncementPlugin(Plugin):
             settings_ar = self.get_settings_action_row(enabled_components, selected_channel, page, role_selected=role, dl_button_pressed=dl_button_pressed, is_promo=promo_setup)
             msg_components += settings_ar
             if not msg:
-                msg = event.reply(type=4, content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed],
+                msg = event.reply(type=4, content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed.to_dict()],
                                   components=msg_components, flags=(1 << 6))
             else:
                 try:
-                    msg.edit(content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed],
+                    msg.edit(content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed.to_dict()],
                              components=msg_components)
                 except APIException as e:
                     error = "`❌ ERROR ❌`: **Embed Can't Be Empty.**\n\n"
@@ -644,10 +548,10 @@ class AnnouncementPlugin(Plugin):
 
                         ar = ActionRow()
 
-                        confirm_yes = MessageComponent(get_component_template("confirm_yes"))
+                        confirm_yes = component(get_component_template("confirm_yes"))
                         confirm_yes.custom_id = "delete_config_yes"
 
-                        confirm_no = MessageComponent(get_component_template("confirm_no"))
+                        confirm_no = component(get_component_template("confirm_no"))
                         confirm_no.custom_id = "delete_config_no"
 
                         ar.add_component(confirm_yes)
@@ -708,13 +612,7 @@ class AnnouncementPlugin(Plugin):
                         modal.custom_id = "edit_message_modal"
                         modal.title = "Edit Message"
 
-                        new_message = MessageComponent()
-                        new_message.type = ComponentTypes.TEXT_INPUT
-                        new_message.style = TextInputStyles.PARAGRAPH
-                        new_message.label = "Message"
-                        new_message.placeholder = "# **Hilariously derailing one liner** {role}"
-                        new_message.required = True
-                        new_message.custom_id = "message"
+                        new_message = TextInputComponent(style = TextInputStyles.PARAGRAPH, label = "Message", placeholder = "# **Hilariously derailing one liner** {role}", required = True, custom_id = "message")
                         if message:
                             new_message.value = message
 
@@ -787,10 +685,10 @@ class AnnouncementPlugin(Plugin):
         embed.description = tmp_desc.format(total_configured=str(count), streams_configured="\n".join(configured_streamers_template))
         ar = ActionRow()
 
-        add_channel = MessageComponent(get_component_template("stream_config_add_channel"))
+        add_channel = component(get_component_template("stream_config_add_channel"))
         add_channel.custom_id = "stream_main_config_add_channel"
 
-        modify_promo_settings = MessageComponent(get_component_template("stream_config_promo_settings_edit"))
+        modify_promo_settings = component(get_component_template("stream_config_promo_settings_edit"))
         modify_promo_settings.custom_id = "stream_config_promo_settings_edit"
 
         # modify_channel = MessageComponent(get_component_template("stream_config_modify_channel"))
@@ -814,14 +712,7 @@ class AnnouncementPlugin(Plugin):
                 while True:
                     ar1 = ActionRow()
 
-                    twitch_name = MessageComponent()
-                    twitch_name.type = ComponentTypes.TEXT_INPUT
-                    twitch_name.style = TextInputStyles.SHORT
-                    twitch_name.label = "Twitch Username"
-                    twitch_name.placeholder = "twitchdev"
-                    twitch_name.required = True
-                    twitch_name.custom_id = "twitch_username"
-
+                    twitch_name = TextInputComponent(style = TextInputStyles.SHORT, label = "Twitch Username", placeholder = "twitchdev", required = True, custom_id = "twitch_username")
                     ar1.add_component(twitch_name)
 
                     modal = MessageModal()
@@ -847,10 +738,10 @@ class AnnouncementPlugin(Plugin):
 
                     ar = ActionRow()
 
-                    confirm_yes = MessageComponent(get_component_template("confirm_yes"))
+                    confirm_yes = component(get_component_template("confirm_yes"))
                     confirm_yes.custom_id = "stream_add_channel_confirm_username_yes"
 
-                    confirm_no = MessageComponent(get_component_template("confirm_no"))
+                    confirm_no = component(get_component_template("confirm_no"))
                     confirm_no.custom_id = "stream_add_channel_confirm_username_no"
 
                     ar.add_component(confirm_yes)
@@ -981,13 +872,13 @@ class AnnouncementPlugin(Plugin):
             return
 
         # Let's craft that message!
-        enabled_components = [component for component, value in guild_config.config.promotional_settings.promo_config.to_dict().items() if value == True]
+        enabled_components = [cp for cp, value in guild_config.config.promotional_settings.promo_config.to_dict().items() if value == True]
         embed = self.build_message_embed(enabled_components, rjson["data"][0])
         embed.set_footer(icon_url=event.author.avatar_url, text=f"Promoted by {event.author.username}")
         components = None
         if 'button' in enabled_components:
             main_ar = ActionRow()
-            preview_btn = MessageComponent(get_component_template("stream_notification_url_button"))
+            preview_btn = component(get_component_template("stream_notification_url_button"))
             preview_btn.url = user_url_to_convert
             if rjson['data'][0]['is_mature']:
                 preview_btn.label += "🔞"
@@ -999,7 +890,7 @@ class AnnouncementPlugin(Plugin):
             created_msg = self.client.api.channels_messages_create(event.channel.id,
                                                                    content=new_content,
                                                                    embeds=[embed],
-                                                                   components=[component.to_dict() for component in
+                                                                   components=[c.to_dict() for c in
                                                                                components],
                                                                    allowed_mentions={})
         except APIException as e:

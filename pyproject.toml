@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [tool.poetry.dependencies]
-betterdisco-py = { git = "https://github.com/elderlabs/BetterDisco.git", rev = "d421b17637ecbfe2def73844b64729753ec740b2" }
+betterdisco-py = { git = "https://github.com/elderlabs/BetterDisco.git", rev = "a00f279ff0d3c7e3e3ea79585b60feee27392bbe" }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
