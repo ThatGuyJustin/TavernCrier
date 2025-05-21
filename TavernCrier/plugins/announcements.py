@@ -465,11 +465,11 @@ class AnnouncementPlugin(Plugin):
             settings_ar = self.get_settings_action_row(enabled_components, selected_channel, page, role_selected=role, dl_button_pressed=dl_button_pressed, is_promo=promo_setup)
             msg_components += settings_ar
             if not msg:
-                msg = event.reply(type=4, content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed.to_dict()],
+                msg = event.reply(type=4, content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed],
                                   components=msg_components, flags=(1 << 6))
             else:
                 try:
-                    msg.edit(content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed.to_dict()],
+                    msg.edit(content=f"{error}{message.format(role=f'<@&{role}>')}", embeds=[preview_embed],
                              components=msg_components)
                 except APIException as e:
                     error = "`❌ ERROR ❌`: **Embed Can't Be Empty.**\n\n"

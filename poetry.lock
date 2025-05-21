@@ -28,8 +28,8 @@ yaml = ["pyyaml (>=6.0.2)"]
 [package.source]
 type = "git"
 url = "https://github.com/elderlabs/BetterDisco.git"
-reference = "a00f279ff0d3c7e3e3ea79585b60feee27392bbe"
-resolved_reference = "a00f279ff0d3c7e3e3ea79585b60feee27392bbe"
+reference = "2ac692fec8c2ae5b65a9fe3fc858335276e1b79b"
+resolved_reference = "2ac692fec8c2ae5b65a9fe3fc858335276e1b79b"
 
 [[package]]
 name = "certifi"
@@ -721,4 +721,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "16582147aaf85c7f8366e5626c391729f251fc347f5860221c1acaddbcca6a45"
+content-hash = "3451a75f7d5c80af4b100e68070d191b69fb227200f91e8d253882687c7642a7"
