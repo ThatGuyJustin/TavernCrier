@@ -300,7 +300,7 @@ class AnnouncementPlugin(Plugin):
             except Exception as e:
                 retry += 1
                 self.log.error(f"Unable to connect to Twitch's API. Retrying... ({retry}) %s", e)
-                gevent.sleep(1)
+                gevent.sleep(5)
 
         # TODO: Bot Error Log
         if retry == 5:
