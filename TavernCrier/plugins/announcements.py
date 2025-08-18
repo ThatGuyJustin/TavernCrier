@@ -372,6 +372,10 @@ class AnnouncementPlugin(Plugin):
                             self.log.error(f"Unable to update message: Streamer: {stream['user_login']} Config ID: {config['id']}. Removing Live Update fromm Redis!")
                             rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
                             continue
+                        except AttributeError as e:
+                            self.log.error(f"[Streamer: {stream['user_login']} Config ID: {config['id']}] Random NoneType error on response.")
+                            rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(),
+                                           {'mid': mid, 'cid': cid, 'last_updated': now.timestamp()})
                     else:
                         try:
                             if components:
@@ -381,6 +385,9 @@ class AnnouncementPlugin(Plugin):
                                                                                    embeds=[embed],
                                                                                    components=components,
                                                                                    allowed_mentions={'parse': ["roles", "users", "everyone"]})
+
+                            if created_msg is None:
+                                raise APIException(f"Message object returned null from API, cannot move forward with saving message for reuse, time to try again later.")
 
                             live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
 
