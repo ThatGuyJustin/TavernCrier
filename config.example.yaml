@@ -3,6 +3,7 @@ enforce_whitelist: false
 
 # TODO: Update to proper required intents after full feature implimentation...
 intents: 3276799
+gateway_version: 10
 bot:
   commands_enabled: false
   plugins:

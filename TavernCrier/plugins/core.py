@@ -14,7 +14,7 @@ class CorePlugin(Plugin):
     def load(self, ctx):
         # Check for and validate twitch access token
         if rdb.get("twitch_access_token"):
-            req = requests.get("https://id.twitch.tv/oauth/validate",
+            req = requests.get("https://id.twitch.tv/oauth2/validate",
                                headers={'Authorization': f"OAuth {rdb.get('twitch_access_token')}"})
             if req.status_code == 401:
                 success, expire = refresh_access_token()

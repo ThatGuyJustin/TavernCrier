@@ -2,7 +2,6 @@ import re
 from datetime import datetime
 
 import gevent
-import requests.exceptions
 from disco.api.http import APIException
 from disco.bot import Plugin
 from disco.types.application import InteractionType
@@ -17,6 +16,8 @@ from TavernCrier.models.configs import GuildConfigs, StreamConfigs
 from TavernCrier.redis import rdb
 from TavernCrier.util.template import get_embed_template, get_component_template
 from TavernCrier.util.twitch import make_twitch_request
+
+from itertools import batched
 
 TWITCH_URL_RE = re.compile(r"(https://twitch\.tv/?[a-zA-Z0-9][\w]{2,24})")
 
@@ -287,149 +288,151 @@ class AnnouncementPlugin(Plugin):
 
         cfg_dict = {str(row[0]): row[1] for row in configs}
 
-        to_check_live = "&user_id=".join(cfg_dict.keys())
+        for chunk in batched(cfg_dict.keys(), 100):
 
-        rjson = None
-        code = None
+            to_check_live = "&user_id=".join(chunk)
 
-        retry = 0
-        while retry < 5:
-            try:
-                code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET", params=f"type=live&first=100&user_id={to_check_live}")
-                break
-            except Exception as e:
-                retry += 1
-                self.log.error(f"Unable to connect to Twitch's API. Retrying... ({retry}) %s", e)
-                gevent.sleep(5)
+            rjson = None
+            code = None
 
-        # TODO: Bot Error Log
-        if retry == 5:
-            self.log.error("Max of 5 retries exceeded. Waiting 1 minute before restarting schedule.")
-            active_greenlet = self.schedules['stream_grab_schedule']
-            del self.schedules['stream_grab_schedule']
-            gevent.sleep(60)
-            self.register_schedule(self.stream_grab_schedule, bot_config.check_interval, init=True)
-            self.log.info("Schedule restarted.")
-            active_greenlet.kill()
+            retry = 0
+            while retry < 5:
+                try:
+                    code, rjson = make_twitch_request("https://api.twitch.tv/helix/streams", "GET", params=f"type=live&first=100&user_id={to_check_live}")
+                    break
+                except Exception as e:
+                    retry += 1
+                    self.log.error(f"Unable to connect to Twitch's API. Retrying... ({retry}) %s", e)
+                    gevent.sleep(5)
 
-        if code != 200:
-            return
+            # TODO: Bot Error Log
+            if retry == 5:
+                self.log.error("Max of 5 retries exceeded. Waiting 1 minute before restarting schedule.")
+                active_greenlet = self.schedules['stream_grab_schedule']
+                del self.schedules['stream_grab_schedule']
+                gevent.sleep(60)
+                self.register_schedule(self.stream_grab_schedule, bot_config.check_interval, init=True)
+                self.log.info("Schedule restarted.")
+                active_greenlet.kill()
 
-        live_users = {}
+            if code != 200:
+                return
 
-        if rjson.get('data') and len(rjson['data']):
-            for stream in rjson['data']:
-                live_users[stream['user_id']] = []
-                cfgs = cfg_dict[stream['user_id']]
-                for config in cfgs:
-                    update = False
-                    cid = None
-                    mid = None
-                    if rdb.exists(f"live_update:{stream['user_id']}:{config['id']}"):
-                        data = rdb.json().get(f"live_update:{stream['user_id']}:{config['id']}")
-                        live_users[stream['user_id']].append(
-                            {'cid': data['cid'], 'mid': data['mid'], 'username': stream['user_name'],
-                             'end_action': config['config']['stream_end_action']})
-                        if datetime.now().timestamp() - data['last_updated'] < bot_config.live_update_interval:
-                            continue
-                        elif datetime.now().timestamp() - data['last_updated'] >= bot_config.rouge_key_removal_interval:
-                            self.log.error(f"Rouge Live Key Found. Deleting and recreating. Key ID: live_update:{stream['user_id']}:{config['id']}")
-                            rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
+            live_users = {}
+
+            if rjson.get('data') and len(rjson['data']):
+                for stream in rjson['data']:
+                    live_users[stream['user_id']] = []
+                    cfgs = cfg_dict[stream['user_id']]
+                    for config in cfgs:
+                        update = False
+                        cid = None
+                        mid = None
+                        if rdb.exists(f"live_update:{stream['user_id']}:{config['id']}"):
+                            data = rdb.json().get(f"live_update:{stream['user_id']}:{config['id']}")
+                            live_users[stream['user_id']].append(
+                                {'cid': data['cid'], 'mid': data['mid'], 'username': stream['user_name'],
+                                'end_action': config['config']['stream_end_action']})
+                            if datetime.now().timestamp() - data['last_updated'] < bot_config.live_update_interval:
+                                continue
+                            elif datetime.now().timestamp() - data['last_updated'] >= bot_config.rouge_key_removal_interval:
+                                self.log.error(f"Rouge Live Key Found. Deleting and recreating. Key ID: live_update:{stream['user_id']}:{config['id']}")
+                                rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
+                            else:
+                                update = True
+                                cid = data['cid']
+                                mid = data['mid']
+                        enabled_components = [c for c, value in config['config'].items() if value == True]
+                        embed = self.build_message_embed(enabled_components, stream)
+                        components = None
+                        if 'button' in enabled_components:
+                            main_ar = ActionRow()
+                            preview_btn = ButtonComponent(get_component_template("stream_notification_url_button"))
+                            preview_btn.url = f"https://twitch.tv/{stream['user_login']}"
+                            if 'mature_badge' in enabled_components:
+                                preview_btn.label += "🔞"
+                            main_ar.add_component(preview_btn)
+                            components = [main_ar]
+
+                        msg = config['messages'][0]
+                        if '{role}' in msg and not config['role']:
+                            msg = msg.replace("{role}", "")
+                        elif '{role}' in msg:
+                            msg = msg.format(role=f"<@&{config['role']}>")
+
+                        if update:
+                            now = datetime.now(tz=timezone("America/New_York"))
+                            embed.set_footer(text="Last Updated")
+                            embed.timestamp = now
+                            try:
+                                self.client.api.channels_messages_modify(channel=cid, message=mid,
+                                                                        content=msg,
+                                                                        embeds=[embed],
+                                                                        components=components)
+
+                                rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(), {'mid': mid, 'cid': cid,'last_updated': now.timestamp()})
+                            except APIException as e:
+                                self.log.error(f"Unable to update message: Streamer: {stream['user_login']} Config ID: {config['id']}. Removing Live Update fromm Redis!")
+                                rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
+                                continue
+                            except AttributeError as e:
+                                self.log.error(f"[Streamer: {stream['user_login']} Config ID: {config['id']}] Random NoneType error on response.")
+                                rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(),
+                                            {'mid': mid, 'cid': cid, 'last_updated': now.timestamp()})
                         else:
-                            update = True
-                            cid = data['cid']
-                            mid = data['mid']
-                    enabled_components = [c for c, value in config['config'].items() if value == True]
-                    embed = self.build_message_embed(enabled_components, stream)
-                    components = None
-                    if 'button' in enabled_components:
-                        main_ar = ActionRow()
-                        preview_btn = ButtonComponent(get_component_template("stream_notification_url_button"))
-                        preview_btn.url = f"https://twitch.tv/{stream['user_login']}"
-                        if 'mature_badge' in enabled_components:
-                            preview_btn.label += "🔞"
-                        main_ar.add_component(preview_btn)
-                        components = [main_ar]
+                            try:
+                                if components:
+                                    components = [c.to_dict() for c in components]
+                                created_msg = self.client.api.channels_messages_create(config['channel'],
+                                                                                    content=msg,
+                                                                                    embeds=[embed],
+                                                                                    components=components,
+                                                                                    allowed_mentions={'parse': ["roles", "users", "everyone"]})
 
-                    msg = config['messages'][0]
-                    if '{role}' in msg and not config['role']:
-                        msg = msg.replace("{role}", "")
-                    elif '{role}' in msg:
-                        msg = msg.format(role=f"<@&{config['role']}>")
+                                if created_msg is None:
+                                    raise APIException(f"Message object returned null from API, cannot move forward with saving message for reuse, time to try again later.")
 
-                    if update:
-                        now = datetime.now(tz=timezone("America/New_York"))
-                        embed.set_footer(text="Last Updated")
-                        embed.timestamp = now
+                                live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
+
+                                if 'live_update' in enabled_components:
+                                    rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
+                            except APIException as e:
+                                self.log.error(f"Unable to send Message for Config ID {config['id']}: {e.msg}")
+
+            currently_live = {}
+            if rdb.exists("currently_live"):
+                currently_live = rdb.json().get("currently_live", Path.root_path())
+
+            prev_live_users = [user for user in currently_live.keys() if user not in live_users.keys()]
+
+            for user in prev_live_users:
+                keys = rdb.keys(f"live_update:{user}:*")
+                for key in keys:
+                    rdb.json().delete(key)
+                for notif in currently_live[user]:
+                    if notif['end_action'] == StreamEndedAction.EDIT_MESSAGE:
                         try:
-                            self.client.api.channels_messages_modify(channel=cid, message=mid,
-                                                                     content=msg,
-                                                                     embeds=[embed],
-                                                                     components=components)
-
-                            rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(), {'mid': mid, 'cid': cid,'last_updated': now.timestamp()})
+                            msg = self.client.api.channels_messages_get(channel=notif['cid'], message=notif['mid'])
+                            ar = ActionRow()
+                            go_to_btn = component(get_component_template("stream_end_go_to_channel"))
+                            go_to_btn.emoji = None
+                            go_to_btn.url = f"https://twitch.tv/{notif['username']}"
+                            ar.add_component(go_to_btn)
+                            msg.edit(f"{notif['username']}'s stream has ended.", components=[ar])
+                            # self.client.api.channels_messages_modify(channel=notif['cid'], message=notif['mid'],
+                            #                                          content=f"{notif['username']}'s stream has ended.",
+                            #                                          embeds=None,
+                            #                                          components=None)
                         except APIException as e:
-                            self.log.error(f"Unable to update message: Streamer: {stream['user_login']} Config ID: {config['id']}. Removing Live Update fromm Redis!")
-                            rdb.json().delete(f"live_update:{stream['user_id']}:{config['id']}")
                             continue
-                        except AttributeError as e:
-                            self.log.error(f"[Streamer: {stream['user_login']} Config ID: {config['id']}] Random NoneType error on response.")
-                            rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(),
-                                           {'mid': mid, 'cid': cid, 'last_updated': now.timestamp()})
-                    else:
+                    elif notif['end_action'] == StreamEndedAction.DELETE_MESSAGE:
                         try:
-                            if components:
-                                components = [c.to_dict() for c in components]
-                            created_msg = self.client.api.channels_messages_create(config['channel'],
-                                                                                   content=msg,
-                                                                                   embeds=[embed],
-                                                                                   components=components,
-                                                                                   allowed_mentions={'parse': ["roles", "users", "everyone"]})
-
-                            if created_msg is None:
-                                raise APIException(f"Message object returned null from API, cannot move forward with saving message for reuse, time to try again later.")
-
-                            live_users[stream['user_id']].append({'cid': config['channel'], 'mid': created_msg.id, 'username': stream['user_name'], 'end_action': config['config']['stream_end_action']})
-
-                            if 'live_update' in enabled_components:
-                                rdb.json().set(f"live_update:{stream['user_id']}:{config['id']}", Path.root_path(), {'mid': created_msg.id, 'cid': config['channel'],'last_updated': datetime.now().timestamp()})
+                            self.client.api.channels_messages_delete(channel=notif['cid'], message=notif['mid'])
                         except APIException as e:
-                            self.log.error(f"Unable to send Message for Config ID {config['id']}: {e.msg}")
+                            continue
 
-        currently_live = {}
-        if rdb.exists("currently_live"):
-            currently_live = rdb.json().get("currently_live", Path.root_path())
-
-        prev_live_users = [user for user in currently_live.keys() if user not in live_users.keys()]
-
-        for user in prev_live_users:
-            keys = rdb.keys(f"live_update:{user}:*")
-            for key in keys:
-                rdb.json().delete(key)
-            for notif in currently_live[user]:
-                if notif['end_action'] == StreamEndedAction.EDIT_MESSAGE:
-                    try:
-                        msg = self.client.api.channels_messages_get(channel=notif['cid'], message=notif['mid'])
-                        ar = ActionRow()
-                        go_to_btn = component(get_component_template("stream_end_go_to_channel"))
-                        go_to_btn.emoji = None
-                        go_to_btn.url = f"https://twitch.tv/{notif['username']}"
-                        ar.add_component(go_to_btn)
-                        msg.edit(f"{notif['username']}'s stream has ended.", components=[ar])
-                        # self.client.api.channels_messages_modify(channel=notif['cid'], message=notif['mid'],
-                        #                                          content=f"{notif['username']}'s stream has ended.",
-                        #                                          embeds=None,
-                        #                                          components=None)
-                    except APIException as e:
-                        continue
-                elif notif['end_action'] == StreamEndedAction.DELETE_MESSAGE:
-                    try:
-                        self.client.api.channels_messages_delete(channel=notif['cid'], message=notif['mid'])
-                    except APIException as e:
-                        continue
-
-        rdb.json().delete("currently_live", Path.root_path())
-        rdb.json().set("currently_live", Path.root_path(), live_users)
+            rdb.json().delete("currently_live", Path.root_path())
+            rdb.json().set("currently_live", Path.root_path(), live_users)
 
     def configure_stream(self, event, msg, streamer, initial_setup=False, stream_cfg=None, promo_setup=False):
 
